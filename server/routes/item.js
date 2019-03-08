@@ -1,9 +1,38 @@
 const express = require('express');
 const Item = require('../models/item');
 const app = express();
+const _ = require('underscore');
 
 app.get('/item', function(req, res) {
-    res.json('get Item')
+
+    let from = req.query.from || 0;  
+    from = Number(from);
+    let limit = req.query.limit || 10;
+    limit = Number(limit);
+    let condition = {};
+    Item.find(condition, 'name amount')      
+            .limit(limit)
+            .skip(from)
+            .exec( (err, items) => {
+
+                if (err) {
+                    return res.status(400).json({
+                        ok: false,
+                        err
+                    });
+                }  
+                
+                Item.count(condition, (err, count) => {
+                    res.json({
+                        ok: true,
+                        items,
+                        count
+                    });
+    
+                })
+
+
+            })
 });
 
 app.post('/item', function(req, res) {
@@ -37,7 +66,7 @@ app.post('/item', function(req, res) {
 
 app.put('/item/:id', function(req, res) {
     let id = req.params.id;
-    let body = req.body;
+    let body = _.pick( req.body, ['name', 'amount', 'price'] );
 
     if (body.amount) {
         body.lastUpdateAmount = Date.now();
@@ -60,8 +89,24 @@ app.put('/item/:id', function(req, res) {
     });
 });
 
-app.delete('/item', function(req, res) {
-    res.json('delete Item')
+app.delete('/item/:id', function(req, res) {
+    
+    let id = req.params.id;
+
+    Item.findByIdAndRemove(id, (err, deletedItem) => {
+
+        if (err) {
+            return res.status(400).json({
+                ok: false,
+                err
+            });
+        };
+        res.json({
+            ok: true,
+            item: deletedItem
+        });
+
+    });
 });
 
 module.exports = app;
